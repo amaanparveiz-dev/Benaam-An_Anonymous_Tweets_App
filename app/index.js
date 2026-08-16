@@ -1,5 +1,4 @@
-import { MaterialIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
@@ -15,23 +14,30 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   FlatList,
+  Modal,
   Pressable,
   TextInput as RNTextInput,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
-  View
+  View,
 } from 'react-native';
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
-import { Button, Switch, Text } from 'react-native-paper';
-import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import { Swipeable } from 'react-native-gesture-handler';
+import { Switch, Text } from 'react-native-paper';
+import {
+  GlassCard,
+  GlassIconButton,
+  GlassSurface,
+  Pill,
+  PrimaryButton,
+  ScreenBackground,
+} from '../components/ui';
 import { auth, db } from '../firebaseConfig';
-import styles from '../styles';
+import { glass, palette, radius, spacing, ThemeContext, typography } from '../theme';
 
 const SENSITIVE = ['kill', 'suicide', 'bomb', 'blast', 'murdered', 'rape'];
 function censor(s) {
@@ -62,35 +68,13 @@ export default function Home() {
   const [posts, setPosts] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [search, setSearch] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const router = useRouter();
 
-  // Load dark mode preference
-  useEffect(() => {
-    const loadDarkMode = async () => {
-      try {
-        const value = await AsyncStorage.getItem('darkMode');
-        if (value !== null) {
-          setDarkMode(JSON.parse(value));
-        }
-      } catch (e) {
-        console.error('Failed to load dark mode preference', e);
-      }
-    };
-    loadDarkMode();
-  }, []);
-
-  // Save dark mode preference
-  const toggleDarkMode = async () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    try {
-      await AsyncStorage.setItem('darkMode', JSON.stringify(newMode));
-    } catch (e) {
-      console.error('Failed to save dark mode preference', e);
-    }
-  };
+  // Unified app-wide theme (light/dark) instead of a separate local toggle.
+  const { themeMode, toggleTheme, tokens } = useContext(ThemeContext);
+  const darkMode = tokens.isDark;
+  const t = darkMode ? palette.dark : palette.light;
 
   useEffect(() => {
     registerPush().then(token => {
@@ -108,10 +92,10 @@ export default function Home() {
   }, []);
 
   const handlePost = async () => {
-    const t = censor(text.trim());
-    if (!t) return;
+    const trimmed = censor(text.trim());
+    if (!trimmed) return;
     await addDoc(collection(db, 'posts'), {
-      text: t,
+      text: trimmed,
       timestamp: serverTimestamp(),
       uid: auth.currentUser.uid,
       likes: [],
@@ -137,170 +121,172 @@ export default function Home() {
   };
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={{ 
-        flex: 1, 
-        backgroundColor: darkMode ? '#121212' : '#fff'
-      }}>
-        {/* Header with Logo and Settings Icon */}
-        <View style={[
-          localStyles.headerContainer,
-          { backgroundColor: '#0F4F4F' } // Your main color
-        ]}>
-          <Text style={localStyles.logoText}>
-            Gumnaam
+    <View style={{ flex: 1 }}>
+      <ScreenBackground isDark={darkMode} ambient={tokens.ambient} />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <View style={styles.barRow}>
+            <View style={styles.brandRow}>
+              <View style={styles.dot} />
+              <Text style={[typography.h1, { color: t.text }]}>Gumnaam Raho</Text>
+            </View>
+            <GlassIconButton icon="settings-outline" isDark={darkMode} onPress={() => setSettingsVisible(true)} />
+          </View>
+          <Text style={{ color: t.textMuted, marginTop: -4, marginBottom: spacing.md, fontSize: 12.5 }}>
+            {posts.length} whisper{posts.length === 1 ? '' : 's'} shared
           </Text>
-          <Pressable 
-            onPress={() => setSettingsVisible(!settingsVisible)}
-            style={localStyles.settingsButton}
-          >
-            <MaterialIcons 
-              name="settings" 
-              size={24} 
-              color="#fff" // White icon on colored background
-            />
-          </Pressable>
         </View>
 
-        {/* Settings Panel */}
-        {settingsVisible && (
-          <View style={[
-            localStyles.settingsPanel,
-            { backgroundColor: darkMode ? '#2a2a2a' : '#f5f5f5' }
-          ]}>
-            <View style={localStyles.settingsHeader}>
-              <MaterialIcons 
-                name="account-circle" 
-                size={24} 
-                color={darkMode ? '#fff' : '#0F4F4F'} 
-              />
-              <Text style={[
-                localStyles.settingsText,
-                { color: darkMode ? '#fff' : '#000' }
-              ]}>
-                {auth.currentUser?.email}
-              </Text>
-            </View>
-            
-            <View style={localStyles.switchContainer}>
-              <MaterialIcons 
-                name={darkMode ? 'dark-mode' : 'light-mode'} 
-                size={24} 
-                color={darkMode ? '#fff' : '#0F4F4F'} 
-              />
-              <Text style={[
-                localStyles.settingsText,
-                { color: darkMode ? '#fff' : '#000' ,padding:hp(1)}
-              ]}>
-                Dark Mode   
-              </Text>
-              <Switch 
-                value={darkMode} 
-                onValueChange={toggleDarkMode}
-                color="#0F4F4F"
-              />
-            </View>
-            
-            <Button 
-              mode="text" 
-              onPress={handleLogout}
-              textColor="#ff4444"
-              style={localStyles.logoutButton}
-              icon="logout"
-            >
-              Logout
-            </Button>
-          </View>
-        )}
-
-
-   <ScrollView
-          contentContainerStyle={{ paddingBottom: hp(2) }}
+        <FlatList
+          data={filtered}
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
           keyboardShouldPersistTaps="handled"
-        >
-          <View style={localStyles.contentContainer}>
-            <RNTextInput
-              placeholder="Search whispers..."
-              placeholderTextColor={darkMode ? '#aaa' : '#666'}
-              value={search}
-              onChangeText={setSearch}
-              style={[
-                localStyles.searchInput,
-                { 
-                  backgroundColor: darkMode ? '#1E1E1E' : '#fff',
-                  borderColor: darkMode ? '#333' : '#ccc',
-                  color: darkMode ? '#fff' : '#000'
-                }
-              ]}
-            />
-
-            <View style={localStyles.postInputContainer}>
-              <RNTextInput
-                placeholder="What's on your mind?"
-                placeholderTextColor={darkMode ? '#aaa' : '#666'}
-                value={text}
-                onChangeText={setText}
-                multiline
-                style={[
-                  localStyles.postInput,
-                  { 
-                    backgroundColor: darkMode ? '#1E1E1E' : '#fff',
-                    borderColor: darkMode ? '#333' : '#ccc',
-                    color: darkMode ? '#fff' : '#000'
-                  }
-                ]}
-              />
-              <Button
-                mode="contained"
-                onPress={handlePost}
-                style={[styles.Main_BG, localStyles.postButton]}
-                labelStyle={{ color: 'white' }}
-                disabled={!text.trim()}
-              >
-                Post
-              </Button>
-            </View>
-
-            {filtered.length === 0 ? (
-              <View style={localStyles.emptyContainer}>
-                <Text style={[
-                  localStyles.emptyText,
-                  { color: darkMode ? '#aaa' : '#666' }
-                ]}>
-                  No whispers yet. Be the first to post!
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                scrollEnabled={false}
-                data={filtered}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                  <PostCard
-                    post={item}
-                    expanded={expanded === item.id}
-                    onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
-                    onLike={() => toggleLikePost(item)}
-                    isOwner={item.uid === auth.currentUser.uid}
-                    darkMode={darkMode}
+          ListHeaderComponent={
+            <View>
+              {/* Search bar */}
+              <GlassSurface isDark={darkMode} radiusSize={radius.md} style={{ marginBottom: spacing.md }}>
+                <View style={styles.searchRow}>
+                  <Ionicons name="search-outline" size={17} color={t.textFaint} />
+                  <RNTextInput
+                    placeholder="Search whispers..."
+                    placeholderTextColor={t.textFaint}
+                    value={search}
+                    onChangeText={setSearch}
+                    style={[styles.searchInput, { color: t.text }]}
                   />
-                )}
-              />
-            )}
-          </View>
-        </ScrollView>
+                </View>
+              </GlassSurface>
+
+              {/* Composer */}
+              <GlassCard isDark={darkMode} style={{ marginBottom: spacing.lg }}>
+                <RNTextInput
+                  placeholder="What's on your mind? Say it anonymously..."
+                  placeholderTextColor={t.textFaint}
+                  value={text}
+                  onChangeText={setText}
+                  multiline
+                  style={[styles.composerInput, { color: t.text }]}
+                />
+                <View style={styles.composerFooter}>
+                  <Pill label="Anonymous" tone="primary" small />
+                  <PrimaryButton
+                    label="Post"
+                    onPress={handlePost}
+                    disabled={!text.trim()}
+                    style={{ minWidth: 108 }}
+                  />
+                </View>
+              </GlassCard>
+
+              <Text style={[typography.h2, { color: t.text, marginBottom: spacing.sm }]}>
+                Recent whispers
+              </Text>
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="chatbubble-ellipses-outline" size={38} color={t.textFaint} />
+              <Text style={[typography.bodyStrong, { color: t.textMuted, marginTop: spacing.sm }]}>
+                No whispers yet
+              </Text>
+              <Text style={{ color: t.textFaint, marginTop: 2 }}>Be the first to share one.</Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <PostCard
+              post={item}
+              expanded={expanded === item.id}
+              onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
+              onLike={() => toggleLikePost(item)}
+              isOwner={item.uid === auth.currentUser.uid}
+              darkMode={darkMode}
+              tokens={t}
+            />
+          )}
+        />
+
+        <SettingsSheet
+          visible={settingsVisible}
+          onClose={() => setSettingsVisible(false)}
+          darkMode={darkMode}
+          onToggleDarkMode={toggleTheme}
+          onLogout={handleLogout}
+          tokens={t}
+        />
       </SafeAreaView>
-    </GestureHandlerRootView>
+    </View>
   );
 }
 
-function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode }) {
+function SettingsSheet({ visible, onClose, darkMode, onToggleDarkMode, onLogout, tokens: t }) {
+  const g = darkMode ? glass.dark : glass.light;
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable onPress={(e) => e.stopPropagation()} style={{ width: '100%' }}>
+          <GlassSurface
+            isDark={darkMode}
+            intensity={60}
+            strong
+            radiusSize={radius.xl}
+            style={styles.sheet}
+          >
+            <View style={{ padding: spacing.lg }}>
+              <View style={[styles.sheetHandle, { backgroundColor: g.border }]} />
+
+              <View style={styles.sheetRow}>
+                <View style={styles.sheetAvatar}>
+                  <Ionicons name="person" size={20} color="#fff" />
+                </View>
+                <View style={{ marginLeft: spacing.sm, flex: 1 }}>
+                  <Text style={[typography.caption, { color: t.textFaint }]}>SIGNED IN AS</Text>
+                  <Text style={[typography.bodyStrong, { color: t.text }]} numberOfLines={1}>
+                    {auth.currentUser?.email}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.sheetDivider, { backgroundColor: g.border }]} />
+
+              <View style={[styles.sheetRow, { justifyContent: 'space-between' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons
+                    name={darkMode ? 'moon' : 'sunny-outline'}
+                    size={19}
+                    color={t.textMuted}
+                  />
+                  <Text style={[typography.body, { color: t.text, marginLeft: spacing.sm }]}>
+                    Dark mode
+                  </Text>
+                </View>
+                <Switch value={darkMode} onValueChange={onToggleDarkMode} color={palette.primary} />
+              </View>
+
+              <View style={[styles.sheetDivider, { backgroundColor: g.border }]} />
+
+              <Pressable style={styles.sheetRow} onPress={onLogout}>
+                <Ionicons name="log-out-outline" size={19} color={palette.danger} />
+                <Text style={[typography.body, { color: palette.danger, marginLeft: spacing.sm }]}>
+                  Log out
+                </Text>
+              </Pressable>
+            </View>
+          </GlassSurface>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode, tokens: t }) {
   const [fullH, setFullH] = useState(52);
   const anim = useRef(new Animated.Value(52)).current;
   const uid = auth.currentUser.uid;
   const [cm, setCm] = useState('');
   const [comments, setComments] = useState([]);
   const liked = post.likes?.includes(uid);
+  const g = darkMode ? glass.dark : glass.light;
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -319,7 +305,7 @@ function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode }) {
   }, [expanded]);
 
   const handleDelete = () => {
-    Alert.alert('Delete post?', '', [
+    Alert.alert('Delete post?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -345,84 +331,82 @@ function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode }) {
     <Swipeable
       renderRightActions={() =>
         isOwner ? (
-          <View style={[localStyles.rightAction, { backgroundColor: darkMode ? '#2a2a2a' : '#f8d7da' }]}>
-            <Text style={[localStyles.deleteText, { color: '#dc3545' }]}>Delete</Text>
+          <View style={[styles.rightAction, { backgroundColor: darkMode ? 'rgba(251,113,133,0.16)' : '#FFE3E9' }]}>
+            <Ionicons name="trash-outline" size={17} color={palette.danger} />
+            <Text style={[styles.deleteText, { color: palette.danger }]}>Delete</Text>
           </View>
         ) : null
       }
       onSwipeableRightOpen={isOwner ? handleDelete : undefined}
     >
       <Pressable onPress={onToggle} onLongPress={onLike}>
-        <View style={[
-          localStyles.card,
-          { backgroundColor: darkMode ? '#1E1E1E' : '#fff' },
-          isOwner && { borderLeftWidth: 4, borderLeftColor: '#0F4F4F' }
-        ]}>
-          <Animated.View style={{ height: anim, overflow: 'hidden' }}>
-            <Text 
-              onLayout={e => setFullH(e.nativeEvent.layout.height)} 
-              style={[localStyles.postText, { color: darkMode ? '#fff' : '#333' }]}
+        <GlassCard
+          isDark={darkMode}
+          style={[
+            { marginBottom: spacing.md },
+            isOwner && { borderColor: 'rgba(124,111,240,0.55)' },
+          ]}
+        >
+          {isOwner && <Pill label="Yours" tone="primary" small />}
+
+          <Animated.View style={{ height: anim, overflow: 'hidden', marginTop: isOwner ? 6 : 0 }}>
+            <Text
+              onLayout={e => setFullH(e.nativeEvent.layout.height)}
+              style={[styles.postText, { color: t.text }]}
             >
               {post.text}
             </Text>
           </Animated.View>
 
-          <View style={localStyles.postFooter}>
-            <Text style={[localStyles.timestamp, { color: darkMode ? '#aaa' : '#666' }]}>
-              {post.timestamp?.toDate().toLocaleString() || '...'}
+          <View style={styles.postFooter}>
+            <Text style={[styles.timestamp, { color: t.textFaint }]}>
+              {post.timestamp?.toDate().toLocaleString() || 'Just now'}
             </Text>
-            
-            <View style={localStyles.actionRow}>
-              <Pressable onPress={onLike} style={localStyles.actionButton}>
-                <Text style={[
-                  localStyles.actionText, 
-                  { color: darkMode ? '#fff' : '#0F4F4F' },
-                  liked && { color: '#dc3545' }
-                ]}>
-                  {liked ? '❤ Liked' : '♡ Like'} ({post.likes?.length || 0})
+
+            <View style={[styles.actionRow, { borderTopColor: g.border }]}>
+              <Pressable onPress={onLike} style={styles.actionButton}>
+                <Ionicons
+                  name={liked ? 'heart' : 'heart-outline'}
+                  size={16}
+                  color={liked ? palette.danger : t.textMuted}
+                />
+                <Text style={[styles.actionText, { color: liked ? palette.danger : t.textMuted }]}>
+                  {post.likes?.length || 0}
                 </Text>
               </Pressable>
-              
-              <Pressable onPress={onToggle} style={localStyles.actionButton}>
-                <Text style={[
-                  localStyles.actionText,
-                  { color: darkMode ? '#fff' : '#0F4F4F' }
-                ]}>
-                  💬 Comment ({comments.length})
+
+              <Pressable onPress={onToggle} style={styles.actionButton}>
+                <Ionicons name="chatbubble-outline" size={15} color={t.textMuted} />
+                <Text style={[styles.actionText, { color: t.textMuted }]}>
+                  {comments.length || 0}
                 </Text>
               </Pressable>
             </View>
           </View>
 
           {expanded && (
-            <View style={[localStyles.commentsContainer, { borderTopColor: darkMode ? '#333' : '#f0f0f0' }]}>
-              <View style={localStyles.commentInputContainer}>
+            <View style={[styles.commentsContainer, { borderTopColor: g.border }]}>
+              <View style={styles.commentInputContainer}>
                 <RNTextInput
                   placeholder="Add a comment..."
-                  placeholderTextColor={darkMode ? '#aaa' : '#666'}
+                  placeholderTextColor={t.textFaint}
                   value={cm}
                   onChangeText={setCm}
                   style={[
-                    localStyles.commentInput,
-                    { 
-                      backgroundColor: darkMode ? '#2a2a2a' : '#fff',
-                      borderColor: darkMode ? '#333' : '#ddd',
-                      color: darkMode ? '#fff' : '#000'
-                    }
+                    styles.commentInput,
+                    { backgroundColor: t.surfaceAlt, borderColor: g.border, color: t.text },
                   ]}
                   multiline
                 />
-                <Button
-                  mode="contained"
+                <Pressable
                   onPress={handleNewComment}
-                  style={[styles.Main_BG, localStyles.commentButton]}
-                  labelStyle={{ color: 'white', fontSize: 12 }}
                   disabled={!cm.trim()}
+                  style={[styles.commentSend, { opacity: cm.trim() ? 1 : 0.4 }]}
                 >
-                  Post
-                </Button>
+                  <Ionicons name="send" size={15} color={palette.primary} />
+                </Pressable>
               </View>
-              
+
               {comments.map(c => (
                 <CommentCard
                   key={c.id}
@@ -431,33 +415,28 @@ function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode }) {
                     await deleteDoc(doc(db, 'posts', post.id, 'comments', c.id));
                   }}
                   isOwner={c.uid === uid}
-                  darkMode={darkMode}
+                  tokens={t}
                 />
               ))}
             </View>
           )}
-        </View>
+        </GlassCard>
       </Pressable>
     </Swipeable>
   );
 }
 
-function CommentCard({ comment, isOwner, onDelete, darkMode }) {
+function CommentCard({ comment, isOwner, onDelete, tokens: t }) {
   return (
-    <View style={[
-      localStyles.commentCard,
-      { backgroundColor: darkMode ? '#2a2a2a' : '#f9f9f9' }
-    ]}>
-      <Text style={[localStyles.commentText, { color: darkMode ? '#fff' : '#333' }]}>
-        {comment.text}
-      </Text>
-      <View style={localStyles.commentFooter}>
-        <Text style={[localStyles.commentTime, { color: darkMode ? '#aaa' : '#666' }]}>
+    <View style={[styles.commentCard, { backgroundColor: t.surfaceAlt }]}>
+      <Text style={[styles.commentText, { color: t.text }]}>{comment.text}</Text>
+      <View style={styles.commentFooter}>
+        <Text style={[styles.commentTime, { color: t.textFaint }]}>
           {comment.timestamp?.toDate().toLocaleTimeString() || '...'}
         </Text>
         {isOwner && (
           <Pressable onPress={onDelete}>
-            <Text style={localStyles.deleteCommentText}>Delete</Text>
+            <Text style={styles.deleteCommentText}>Delete</Text>
           </Pressable>
         )}
       </View>
@@ -465,170 +444,172 @@ function CommentCard({ comment, isOwner, onDelete, darkMode }) {
   );
 }
 
-const localStyles = StyleSheet.create({
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center', // Center the logo
-    alignItems: 'center',
-    paddingHorizontal: wp(5),
-    paddingVertical: hp(2),
-    backgroundColor: '#0F4F4F', // Your main color
-    position: 'relative', // For absolute positioning of settings icon
-  },
-  logoText: {
-    fontSize: hp(2.8),
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  settingsButton: {
-    position: 'absolute',
-    right: wp(5),
-    padding: wp(3),
-  },
-   settingsPanel: {
-    padding: wp(5),
-    marginHorizontal: wp(5),
-    borderRadius: 8,
-    marginBottom: hp(2),
-  },
-  settingsHeader: {
+const styles = StyleSheet.create({
+  barRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: hp(1.5),
+    justifyContent: 'space-between',
+    paddingTop: spacing.sm,
   },
-  settingsText: {
-    fontSize: hp(1.8),
-    marginLeft: wp(2),
-  },
-  switchContainer: {
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: hp(1.5),
   },
-  logoutButton: {
-    alignSelf: 'flex-start',
-    marginTop: hp(1),
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: palette.secondary,
+    marginRight: 8,
   },
-  contentContainer: {
-    paddingHorizontal: wp(5),
-    paddingTop: hp(0),
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    height: 46,
   },
   searchInput: {
-    borderWidth: 1,
-    padding: wp(3),
-    borderRadius: 8,
-    marginBottom: hp(2),
-    marginTop: hp(2),
-    fontSize: hp(1.8),
+    flex: 1,
+    marginLeft: spacing.sm,
+    fontSize: 14.5,
+    height: '100%',
   },
-  postInputContainer: {
-    marginBottom: hp(2),
-  },
-  postInput: {
-    borderWidth: 1,
-    padding: wp(3),
-    borderRadius: 8,
-    minHeight: hp(10),
-    fontSize: hp(1.8),
-    marginBottom: hp(1),
+  composerInput: {
+    fontSize: 15,
+    minHeight: 66,
     textAlignVertical: 'top',
   },
-  postButton: {
-    borderRadius: 8,
-    paddingVertical: hp(0.8),
-  },
-  emptyContainer: {
-    paddingVertical: hp(5),
+  composerFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: spacing.sm,
   },
-  emptyText: {
-    fontSize: hp(2),
-  },
-  rightAction: {
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingHorizontal: wp(5),
-    flex: 1,
-    borderRadius: 8,
-    marginVertical: hp(0.5),
-  },
-  deleteText: {
-    fontWeight: 'bold',
-  },
-  card: {
-    borderRadius: 8,
-    padding: wp(4),
-    marginBottom: hp(1.5),
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
   },
   postText: {
-    fontSize: hp(1.9),
-    lineHeight: hp(2.5),
+    fontSize: 15.5,
+    lineHeight: 22,
   },
   postFooter: {
-    marginTop: hp(1),
+    marginTop: spacing.sm,
   },
   timestamp: {
-    fontSize: hp(1.5),
-    marginBottom: hp(1),
+    fontSize: 11.5,
+    marginBottom: spacing.sm,
   },
   actionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: spacing.lg,
     borderTopWidth: 1,
-    paddingTop: hp(1),
+    paddingTop: spacing.sm,
   },
   actionButton: {
-    paddingVertical: hp(0.5),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   actionText: {
-    fontSize: hp(1.7),
+    fontSize: 13,
+    fontWeight: '600',
   },
   commentsContainer: {
-    marginTop: hp(1.5),
-    paddingTop: hp(1),
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
   },
   commentInputContainer: {
     flexDirection: 'row',
-    marginBottom: hp(1),
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   commentInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: wp(3),
-    fontSize: hp(1.7),
-    marginRight: wp(2),
-    minHeight: hp(5),
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    fontSize: 13.5,
+    marginRight: spacing.sm,
+    minHeight: 38,
     textAlignVertical: 'top',
   },
-  commentButton: {
-    borderRadius: 8,
-    paddingVertical: hp(0.5),
+  commentSend: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(124,111,240,0.14)',
   },
   commentCard: {
-    borderRadius: 8,
-    padding: wp(3),
-    marginBottom: hp(1),
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.xs,
   },
   commentText: {
-    fontSize: hp(1.7),
-    marginBottom: hp(0.5),
+    fontSize: 13.5,
+    marginBottom: 4,
   },
   commentFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   commentTime: {
-    fontSize: hp(1.4),
+    fontSize: 11,
   },
   deleteCommentText: {
-    fontSize: hp(1.4),
-    color: '#dc3545',
-    fontWeight: 'bold',
+    fontSize: 11,
+    color: palette.danger,
+    fontWeight: '700',
+  },
+  rightAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    flex: 1,
+    borderRadius: radius.lg,
+    marginVertical: 3,
+    marginLeft: spacing.sm,
+    gap: 2,
+  },
+  deleteText: {
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(6,5,12,0.5)',
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+  },
+  sheet: {
+    width: '100%',
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  sheetAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: palette.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetDivider: {
+    height: 1,
+    marginVertical: 4,
   },
 });

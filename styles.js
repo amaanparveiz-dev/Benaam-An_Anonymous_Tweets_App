@@ -1,19 +1,22 @@
+// styles.js
+// Legacy shared stylesheet. New screens use theme.js + components/ui.js
+// directly; this file is kept only for backward compatibility in case
+// other code still imports it.
 import { StyleSheet } from 'react-native';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import { palette, radius } from './theme';
 
-const main_color = '#0F4F4F';
-
+const main_color = palette.primary;
 
 const styles = StyleSheet.create({
-
-  Main_BG : {
-    backgroundColor : main_color,
-    color : 'white',
+  Main_BG: {
+    backgroundColor: main_color,
+    color: 'white',
   },
 
-  Main_Text:{
+  Main_Text: {
     color: main_color,
-  } ,
+  },
 
   TopContainer: {
     backgroundColor: main_color,
@@ -24,7 +27,7 @@ const styles = StyleSheet.create({
   },
   LogoText: {
     color: 'white',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: hp(5),
     textAlign: 'center',
     paddingTop: hp('16%'),
@@ -38,7 +41,7 @@ const styles = StyleSheet.create({
   signInHeader: {
     textAlign: 'center',
     fontSize: hp(3.5),
-    color: 'black',
+    color: palette.light.text,
     fontWeight: '700',
     margin: wp('5%'),
   },
@@ -48,13 +51,13 @@ const styles = StyleSheet.create({
     marginTop: hp('2%'),
     fontWeight: '500',
     fontSize: 20,
-    color: 'plum',
+    color: palette.accent,
   },
   Input: {
-    padding: wp('3%'), // Reduced for better alignment with fontSize
+    padding: wp('3%'),
     borderWidth: 1,
-    borderColor: '#aaa',
-    borderRadius: 20,
+    borderColor: palette.light.border,
+    borderRadius: radius.md,
     marginLeft: wp('5%'),
     marginRight: wp('5%'),
     marginTop: wp('2%'),
@@ -64,11 +67,10 @@ const styles = StyleSheet.create({
   },
   SignInButton: {
     alignSelf: 'center',
-    backgroundColor: 'plum',
+    backgroundColor: main_color,
     width: wp('50%'),
     padding: wp('4%'),
-    borderRadius: 10,
-    borderColor: '#aaa',
+    borderRadius: radius.pill,
     marginTop: wp('1%'),
   },
   SignInButtonText: {
@@ -80,7 +82,7 @@ const styles = StyleSheet.create({
   SignUpPrompt: {
     textAlign: 'center',
     margin: wp('4%'),
-    color: '#aaa', // Fixed invalid hex
+    color: palette.light.textMuted,
     fontWeight: '300',
   },
 });

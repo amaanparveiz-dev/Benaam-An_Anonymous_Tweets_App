@@ -1,10 +1,19 @@
 // components/Loading.js
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { palette } from '../theme';
 
 export default function Loading() {
   return (
-    <View style={{ padding: 10 }}>
-      <ActivityIndicator size="large" color="#007AFF" />
+    <View style={styles.wrap}>
+      <ActivityIndicator size="large" color={palette.primary} />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: {
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

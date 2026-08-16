@@ -4,21 +4,40 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { Button, PaperProvider } from 'react-native-paper';
-import { heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import {
+  BrandMark,
+  GhostLink,
+  GlassCard,
+  PrimaryButton,
+  ScreenBackground,
+  TextField,
+} from '../components/ui';
 import { auth } from '../firebaseConfig';
-import styles from '../styles';
+import { palette, spacing, typography } from '../theme';
+
+const IS_DARK = true;
+
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [hidePassword, setHidePassword] = useState(true);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const t = palette.dark;
 
   const handleSignUp = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Missing info', 'Please enter an email and password.');
+      return;
+    }
+    setLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email.trim(), password);
       router.replace('/');
@@ -32,73 +51,85 @@ export default function SignUp() {
       } else {
         Alert.alert('Error', 'Something went wrong.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <PaperProvider>
-
-       <View style = {styles.TopContainer}>
-          <Text style = {styles.LogoText}>Gumnaam</Text>
-          <Text style = {styles.SloganText}>Raho</Text>
-        </View>
-      <StatusBar style="auto" />
-      <View style={{ flex: 0.5, justifyContent: 'center', padding: 20 }}>
-        <Text
-          style={{
-            fontSize: 26,
-            fontWeight: 'bold',
-            textAlign: 'center',
-            marginBottom: 20,
-          }}
+    <View style={{ flex: 1 }}>
+      <ScreenBackground isDark={IS_DARK} />
+      <SafeAreaView style={{ flex: 1 }}>
+        <StatusBar style="light" />
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          Sign Up
-        </Text>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: spacing.lg }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <BrandMark icon="sparkles" colors={palette.gradientAccent} />
 
-        <TextInput
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={{
-            borderWidth: 1,
-            borderColor: '#ccc',
-            padding: 12,
-            borderRadius: 8,
-            marginBottom: 16,
-          }}
-        />
+            <Text style={[typography.display, { color: t.text, textAlign: 'center', marginTop: spacing.md }]}>
+              Gumnaam Raho
+            </Text>
+            <Text style={{ color: t.textMuted, textAlign: 'center', marginTop: 4, marginBottom: spacing.xl }}>
+              Join a space built for honesty.
+            </Text>
 
-        <TextInput
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={{
-            borderWidth: 1,
-            borderColor: '#ccc',
-            padding: 12,
-            borderRadius: 8,
-            marginBottom: 16,
-          }}
-        />
+            <GlassCard isDark={IS_DARK}>
+              <Text style={[typography.h1, { color: t.text, marginBottom: 4 }]}>
+                Create your account
+              </Text>
+              <Text style={{ color: t.textMuted, marginBottom: spacing.lg }}>
+                Your identity stays hidden. Always.
+              </Text>
 
-<Button
-  mode="contained"
-  onPress={handleSignUp}
-  style={[{ padding: hp(1.2) }, styles.Main_BG]}
-  labelStyle={{ color: 'white' }}
->
-  Sign Up
-</Button>
+              <TextField
+                isDark={IS_DARK}
+                icon="mail-outline"
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                containerStyle={{ marginBottom: spacing.md }}
+              />
 
-        <TouchableOpacity onPress={() => router.push('/SignIn')}>
-          <Text style={{ textAlign: 'center', marginTop: 20, color: 'gray' ,fontWeight:700 }}>
-            Already have an account ? Sign in
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </PaperProvider>
+              <TextField
+                isDark={IS_DARK}
+                icon="lock-closed-outline"
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={hidePassword}
+                rightIcon={hidePassword ? 'eye-outline' : 'eye-off-outline'}
+                onRightIconPress={() => setHidePassword((v) => !v)}
+                containerStyle={{ marginBottom: 6 }}
+              />
+              <Text style={{ color: t.textFaint, fontSize: 12, marginBottom: spacing.lg }}>
+                Use at least 6 characters.
+              </Text>
+
+              <PrimaryButton
+                label="Sign Up"
+                onPress={handleSignUp}
+                loading={loading}
+                colors={palette.gradientAccent}
+              />
+
+              <View style={{ marginTop: spacing.lg, alignItems: 'center' }}>
+                <GhostLink
+                  isDark={IS_DARK}
+                  label="Already have an account? Sign in"
+                  onPress={() => router.push('/SignIn')}
+                />
+              </View>
+            </GlassCard>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }

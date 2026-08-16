@@ -4,24 +4,43 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Platform,
   SafeAreaView,
   ScrollView,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { Button } from 'react-native-paper';
-import { heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import {
+  BrandMark,
+  GhostLink,
+  GlassCard,
+  PrimaryButton,
+  ScreenBackground,
+  TextField,
+} from '../components/ui';
 import { auth } from '../firebaseConfig';
-import styles from '../styles';
+import { palette, spacing, typography } from '../theme';
+
+// Auth screens always use the dark, elegant ambient look â€” regardless of
+// the in-app theme toggle â€” since there's no user session yet to read a
+// preference from.
+const IS_DARK = true;
+
 export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [hidePassword, setHidePassword] = useState(true);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const t = palette.dark;
 
   const handleSignIn = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Missing info', 'Please enter your email and password.');
+      return;
+    }
+    setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       router.replace('/');
@@ -35,90 +54,77 @@ export default function SignIn() {
       } else {
         Alert.alert('Error', 'Something went wrong.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <>
-        <View style = {styles.TopContainer}>
-          <Text style = {styles.LogoText}>Gumnaam</Text>
-          <Text style = {styles.SloganText}>Raho</Text>
-        </View>
-
-      <StatusBar style="dark" />
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-        <ScrollView
-          contentContainerStyle={{
-            flexGrow: 0.2,
-            justifyContent: 'center',
-            padding: 20,
-            paddingTop: Platform.OS === 'android' ? 40 : 0,
-          }}
-          keyboardShouldPersistTaps="handled"
+    <View style={{ flex: 1 }}>
+      <ScreenBackground isDark={IS_DARK} />
+      <SafeAreaView style={{ flex: 1 }}>
+        <StatusBar style="light" />
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Text
-            style={{
-              fontSize: 26,
-              fontWeight: 'bold',
-              textAlign: 'center',
-              marginBottom: 20,
-            }}
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: spacing.lg }}
+            keyboardShouldPersistTaps="handled"
           >
-            Sign In
-          </Text>
+            <BrandMark icon="chatbubbles" />
 
-          <TextInput
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            style={{
-              borderWidth: 1,
-              borderColor: '#ccc',
-              padding: 12,
-              borderRadius: 8,
-              marginBottom: 16,
-            }}
-          />
-
-          <TextInput
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={{
-              borderWidth: 1,
-              borderColor: '#ccc',
-              padding: 12,
-              borderRadius: 8,
-              marginBottom: 16,
-            }}
-          />
-
-<Button
-  mode="contained"
-  onPress={handleSignIn}
-  style={[{ padding: hp(1.2) }, styles.Main_BG]}
-  labelStyle={{ color: 'white' }}
->
-  Sign In
-</Button>
-
-          <TouchableOpacity onPress={() => router.push('/SignUp')}>
-            <Text
-              style={{
-                textAlign: 'center',
-                marginTop: 20,
-                color: 'gray',
-                fontWeight:700,
-              }}
-            >
-              Don’t have an account ? Sign up
+            <Text style={[typography.display, { color: t.text, textAlign: 'center', marginTop: spacing.md }]}>
+              Gumnaam Raho
             </Text>
-          </TouchableOpacity>
-        </ScrollView>
+            <Text style={{ color: t.textMuted, textAlign: 'center', marginTop: 4, marginBottom: spacing.xl }}>
+              Speak freely. Stay anonymous.
+            </Text>
+
+            <GlassCard isDark={IS_DARK}>
+              <Text style={[typography.h1, { color: t.text, marginBottom: 4 }]}>
+                Welcome back
+              </Text>
+              <Text style={{ color: t.textMuted, marginBottom: spacing.lg }}>
+                Sign in to keep sharing your whispers
+              </Text>
+
+              <TextField
+                isDark={IS_DARK}
+                icon="mail-outline"
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                containerStyle={{ marginBottom: spacing.md }}
+              />
+
+              <TextField
+                isDark={IS_DARK}
+                icon="lock-closed-outline"
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={hidePassword}
+                rightIcon={hidePassword ? 'eye-outline' : 'eye-off-outline'}
+                onRightIconPress={() => setHidePassword((v) => !v)}
+                containerStyle={{ marginBottom: spacing.lg }}
+              />
+
+              <PrimaryButton label="Sign In" onPress={handleSignIn} loading={loading} />
+
+              <View style={{ marginTop: spacing.lg, alignItems: 'center' }}>
+                <GhostLink
+                  isDark={IS_DARK}
+                  label="Don't have an account? Sign up"
+                  onPress={() => router.push('/SignUp')}
+                />
+              </View>
+            </GlassCard>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
-    </>
+    </View>
   );
 }
