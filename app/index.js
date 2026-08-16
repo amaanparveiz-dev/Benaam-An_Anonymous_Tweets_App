@@ -69,20 +69,35 @@ export default function Home() {
   const [expanded, setExpanded] = useState(null);
   const [search, setSearch] = useState('');
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Unified app-wide theme (light/dark) instead of a separate local toggle.
   const { themeMode, toggleTheme, tokens } = useContext(ThemeContext);
   const darkMode = tokens.isDark;
   const t = darkMode ? palette.dark : palette.light;
 
+  // Listen for auth state changes
   useEffect(() => {
-    registerPush().then(token => {
-      if (auth.currentUser?.uid && token) {
-        setDoc(doc(db, 'users', auth.currentUser.uid), { expoPushToken: token }, { merge: true });
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      setIsLoading(false);
+      if (!currentUser) {
+        router.replace('/SignIn');
       }
     });
+    return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    registerPush().then(token => {
+      if (user.uid && token) {
+        setDoc(doc(db, 'users', user.uid), { expoPushToken: token }, { merge: true });
+      }
+    });
+  }, [user]);
 
   useEffect(() => {
     const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
@@ -92,19 +107,26 @@ export default function Home() {
   }, []);
 
   const handlePost = async () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to post');
+      return;
+    }
+    
     const trimmed = censor(text.trim());
     if (!trimmed) return;
     await addDoc(collection(db, 'posts'), {
       text: trimmed,
       timestamp: serverTimestamp(),
-      uid: auth.currentUser.uid,
+      uid: user.uid,
       likes: [],
     });
     setText('');
   };
 
   const toggleLikePost = async (p) => {
-    const uid = auth.currentUser.uid;
+    if (!user) return;
+    
+    const uid = user.uid;
     const ref = doc(db, 'posts', p.id);
     const likes = p.likes || [];
     const updated = likes.includes(uid)
@@ -117,8 +139,23 @@ export default function Home() {
 
   const handleLogout = async () => {
     await auth.signOut();
+    setUser(null);
     router.replace('/SignIn');
   };
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  // If no user, redirect (though the onAuthStateChanged should handle this)
+  if (!user) {
+    return null;
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -199,7 +236,7 @@ export default function Home() {
               expanded={expanded === item.id}
               onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
               onLike={() => toggleLikePost(item)}
-              isOwner={item.uid === auth.currentUser.uid}
+              isOwner={user ? item.uid === user.uid : false}
               darkMode={darkMode}
               tokens={t}
             />
@@ -220,7 +257,16 @@ export default function Home() {
 }
 
 function SettingsSheet({ visible, onClose, darkMode, onToggleDarkMode, onLogout, tokens: t }) {
+  const [userEmail, setUserEmail] = useState('');
   const g = darkMode ? glass.dark : glass.light;
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUserEmail(user?.email || '');
+    });
+    return () => unsubscribe();
+  }, []);
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
@@ -242,7 +288,7 @@ function SettingsSheet({ visible, onClose, darkMode, onToggleDarkMode, onLogout,
                 <View style={{ marginLeft: spacing.sm, flex: 1 }}>
                   <Text style={[typography.caption, { color: t.textFaint }]}>SIGNED IN AS</Text>
                   <Text style={[typography.bodyStrong, { color: t.text }]} numberOfLines={1}>
-                    {auth.currentUser?.email}
+                    {userEmail || 'No email'}
                   </Text>
                 </View>
               </View>
@@ -282,11 +328,24 @@ function SettingsSheet({ visible, onClose, darkMode, onToggleDarkMode, onLogout,
 function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode, tokens: t }) {
   const [fullH, setFullH] = useState(52);
   const anim = useRef(new Animated.Value(52)).current;
-  const uid = auth.currentUser.uid;
   const [cm, setCm] = useState('');
   const [comments, setComments] = useState([]);
-  const liked = post.likes?.includes(uid);
+  const [user, setUser] = useState(null);
+  const [liked, setLiked] = useState(false);
   const g = darkMode ? glass.dark : glass.light;
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setLiked(post.likes?.includes(user.uid) || false);
+    }
+  }, [user, post.likes]);
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -316,15 +375,28 @@ function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode, tokens:
   };
 
   const handleNewComment = async () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to comment');
+      return;
+    }
+    
     const c = censor(cm.trim());
     if (!c) return;
     await addDoc(collection(db, 'posts', post.id, 'comments'), {
       text: c,
       timestamp: serverTimestamp(),
-      uid,
+      uid: user.uid,
       likes: []
     });
     setCm('');
+  };
+
+  const handleLike = () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to like');
+      return;
+    }
+    onLike();
   };
 
   return (
@@ -339,7 +411,7 @@ function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode, tokens:
       }
       onSwipeableRightOpen={isOwner ? handleDelete : undefined}
     >
-      <Pressable onPress={onToggle} onLongPress={onLike}>
+      <Pressable onPress={onToggle} onLongPress={handleLike}>
         <GlassCard
           isDark={darkMode}
           style={[
@@ -364,7 +436,7 @@ function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode, tokens:
             </Text>
 
             <View style={[styles.actionRow, { borderTopColor: g.border }]}>
-              <Pressable onPress={onLike} style={styles.actionButton}>
+              <Pressable onPress={handleLike} style={styles.actionButton}>
                 <Ionicons
                   name={liked ? 'heart' : 'heart-outline'}
                   size={16}
@@ -414,7 +486,7 @@ function PostCard({ post, expanded, onToggle, onLike, isOwner, darkMode, tokens:
                   onDelete={async () => {
                     await deleteDoc(doc(db, 'posts', post.id, 'comments', c.id));
                   }}
-                  isOwner={c.uid === uid}
+                  isOwner={user ? c.uid === user.uid : false}
                   tokens={t}
                 />
               ))}
