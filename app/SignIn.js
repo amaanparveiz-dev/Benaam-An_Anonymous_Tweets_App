@@ -75,7 +75,7 @@ export default function SignIn() {
             <BrandMark icon="chatbubbles" />
 
             <Text style={[typography.display, { color: t.text, textAlign: 'center', marginTop: spacing.md }]}>
-              Gumnaam Raho
+              Benaam 
             </Text>
             <Text style={{ color: t.textMuted, textAlign: 'center', marginTop: 4, marginBottom: spacing.xl }}>
               Speak freely. Stay anonymous.

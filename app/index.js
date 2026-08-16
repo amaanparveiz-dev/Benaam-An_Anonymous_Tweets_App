@@ -165,7 +165,7 @@ export default function Home() {
           <View style={styles.barRow}>
             <View style={styles.brandRow}>
               <View style={styles.dot} />
-              <Text style={[typography.h1, { color: t.text }]}>Gumnaam Raho</Text>
+              <Text style={[typography.h1, { color: t.text }]}>Benaam</Text>
             </View>
             <GlassIconButton icon="settings-outline" isDark={darkMode} onPress={() => setSettingsVisible(true)} />
           </View>

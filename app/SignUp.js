@@ -72,7 +72,7 @@ export default function SignUp() {
             <BrandMark icon="sparkles" colors={palette.gradientAccent} />
 
             <Text style={[typography.display, { color: t.text, textAlign: 'center', marginTop: spacing.md }]}>
-              Gumnaam Raho
+              Benaam
             </Text>
             <Text style={{ color: t.textMuted, textAlign: 'center', marginTop: 4, marginBottom: spacing.xl }}>
               Join a space built for honesty.
